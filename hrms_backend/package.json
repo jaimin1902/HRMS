@@ -1,0 +1,31 @@
+{
+  "name": "hrms_backend",
+  "version": "1.0.0",
+  "main": "app.js",
+  "directories": {
+    "lib": "lib",
+    "test": "tests"
+  },
+  "scripts": {
+    "start": "set NODE_ENV=PRODUCTION & node app.js",
+    "dev": "nodemon app.js",
+    "migrate": "node db/runMigrations.js"
+  },
+  "keywords": [],
+  "author": "",
+  "type": "module",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "2.8.5",
+    "dotenv": "17.2.3",
+    "express": "5.1.0",
+    "helmet": "8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "1.10.1",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "nodemon": "3.1.10"
+  }
+}
