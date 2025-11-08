@@ -1,2 +1,4 @@
 /node_modules
 .env
+/SETUP.md
+/API_DOCUMENTATION.md
