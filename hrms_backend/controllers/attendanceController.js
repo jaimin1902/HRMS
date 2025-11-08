@@ -53,11 +53,17 @@ export const checkOut = async (req, res, next) => {
 export const getMyAttendance = async (req, res, next) => {
     try {
         const user_id = req.user.id;
-        const { start_date, end_date, status } = req.query;
+        const { start_date, end_date, date, status } = req.query;
 
         const filters = { user_id };
-        if (start_date) filters.start_date = start_date;
-        if (end_date) filters.end_date = end_date;
+        if (date) {
+            // If single date is provided, use it for both start and end
+            filters.start_date = date;
+            filters.end_date = date;
+        } else {
+            if (start_date) filters.start_date = start_date;
+            if (end_date) filters.end_date = end_date;
+        }
         if (status) filters.status = status;
 
         const attendance = await Attendance.findAll(filters);
@@ -145,6 +151,72 @@ export const updateAttendance = async (req, res, next) => {
             success: true,
             message: 'Attendance updated successfully',
             data: updatedAttendance
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Admin endpoints for marking attendance for any user
+export const markAttendanceForUser = async (req, res, next) => {
+    try {
+        const { user_id, date, check_in_time, status } = req.body;
+
+        if (!user_id) {
+            return res.status(400).json({
+                success: false,
+                message: 'User ID is required'
+            });
+        }
+
+        const attendanceDate = date || new Date().toISOString().split('T')[0];
+        const checkIn = check_in_time || new Date().toISOString();
+
+        const attendance = await Attendance.markAttendance(
+            user_id,
+            attendanceDate,
+            checkIn,
+            status || 'present'
+        );
+
+        await logAction(req, 'ATTENDANCE_MARKED', 'attendance', attendance.id, null, { 
+            user_id, date: attendanceDate, status 
+        });
+
+        res.status(201).json({
+            success: true,
+            message: 'Attendance marked successfully',
+            data: attendance
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const checkOutForUser = async (req, res, next) => {
+    try {
+        const { user_id, date, check_out_time } = req.body;
+
+        if (!user_id) {
+            return res.status(400).json({
+                success: false,
+                message: 'User ID is required'
+            });
+        }
+
+        const attendanceDate = date || new Date().toISOString().split('T')[0];
+        const checkOut = check_out_time || new Date().toISOString();
+
+        const attendance = await Attendance.checkOut(user_id, attendanceDate, checkOut);
+
+        await logAction(req, 'ATTENDANCE_CHECKOUT', 'attendance', attendance.id, null, { 
+            user_id, check_out_time: checkOut 
+        });
+
+        res.json({
+            success: true,
+            message: 'Check-out recorded successfully',
+            data: attendance
         });
     } catch (error) {
         next(error);

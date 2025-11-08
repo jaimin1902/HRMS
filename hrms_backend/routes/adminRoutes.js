@@ -12,42 +12,62 @@ import {
     createSalaryStructure,
     updateSalaryStructure,
     getSalaryStructureByUser,
+    getSalaryStructureById,
+    getAllSalaryComponentTemplates,
+    getSalaryComponentTemplateById,
+    createSalaryComponentTemplate,
+    updateSalaryComponentTemplate,
+    deleteSalaryComponentTemplate,
+    reorderSalaryComponentTemplates,
     getAllSettings,
     getSettingByKey,
-    updateSetting
+    updateSetting,
+    getAllAuditLogs
 } from '../controllers/adminController.js';
 import { authenticate, authorize } from '../middlewares/auth.js';
 
 const router = express.Router();
 
-// All routes require authentication and admin access
+// All routes require authentication
 router.use(authenticate);
-router.use(authorize('admin'));
 
-// Role management
-router.get('/roles', getAllRoles);
-router.post('/roles', createRole);
-router.put('/roles/:id', updateRole);
+// Role management - Admin only
+router.get('/roles', authorize('admin'), getAllRoles);
+router.post('/roles', authorize('admin'), createRole);
+router.put('/roles/:id', authorize('admin'), updateRole);
 
-// Department management
-router.get('/departments', getAllDepartments);
-router.post('/departments', createDepartment);
-router.put('/departments/:id', updateDepartment);
-router.delete('/departments/:id', deleteDepartment);
+// Department management - Admin only
+router.get('/departments', authorize('admin'), getAllDepartments);
+router.post('/departments', authorize('admin'), createDepartment);
+router.put('/departments/:id', authorize('admin'), updateDepartment);
+router.delete('/departments/:id', authorize('admin'), deleteDepartment);
 
-// Leave type management
-router.post('/leave-types', createLeaveType);
-router.put('/leave-types/:id', updateLeaveType);
+// Leave type management - Admin only
+router.post('/leave-types', authorize('admin'), createLeaveType);
+router.put('/leave-types/:id', authorize('admin'), updateLeaveType);
 
-// Salary structure management
-router.post('/salary-structures', createSalaryStructure);
-router.put('/salary-structures/:id', updateSalaryStructure);
-router.get('/salary-structures/user/:user_id', getSalaryStructureByUser);
+// Salary structure management - Admin and Payroll Officer
+router.post('/salary-structures', authorize('admin', 'payroll officer'), createSalaryStructure);
+router.get('/salary-structures/:id', authorize('admin', 'payroll officer'), getSalaryStructureById);
+router.put('/salary-structures/:id', authorize('admin', 'payroll officer'), updateSalaryStructure);
+router.get('/salary-structures/user/:user_id', authorize('admin', 'payroll officer'), getSalaryStructureByUser);
 
-// System settings
-router.get('/settings', getAllSettings);
-router.get('/settings/:key', getSettingByKey);
-router.put('/settings/:key', updateSetting);
+// Salary component template management
+// All operations accessible to admin and payroll officer (since they manage salary structures)
+router.get('/salary-component-templates', authorize('admin', 'payroll officer'), getAllSalaryComponentTemplates);
+router.get('/salary-component-templates/:id', authorize('admin', 'payroll officer'), getSalaryComponentTemplateById);
+router.post('/salary-component-templates', authorize('admin', 'payroll officer'), createSalaryComponentTemplate);
+router.put('/salary-component-templates/:id', authorize('admin', 'payroll officer'), updateSalaryComponentTemplate);
+router.delete('/salary-component-templates/:id', authorize('admin', 'payroll officer'), deleteSalaryComponentTemplate);
+router.post('/salary-component-templates/reorder', authorize('admin', 'payroll officer'), reorderSalaryComponentTemplates);
+
+// System settings - Admin only
+router.get('/settings', authorize('admin'), getAllSettings);
+router.get('/settings/:key', authorize('admin'), getSettingByKey);
+router.put('/settings/:key', authorize('admin'), updateSetting);
+
+// Audit logs - Admin only
+router.get('/audit-logs', authorize('admin'), getAllAuditLogs);
 
 export default router;
 

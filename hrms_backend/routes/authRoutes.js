@@ -11,7 +11,8 @@ import { authenticate } from '../middlewares/auth.js';
 const router = express.Router();
 
 // Public routes
-router.post('/register', register);
+// Note: Registration is disabled for public use. Only Admin/HR can create users via /api/users endpoint
+// router.post('/register', register); // Disabled - users can only be created by Admin/HR
 router.post('/login', login);
 
 // Protected routes

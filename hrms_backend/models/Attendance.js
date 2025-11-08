@@ -105,15 +105,8 @@ export class Attendance {
     }
 
     static async markAttendance(user_id, date, check_in_time, status = 'present') {
-        // Calculate working hours if check_out_time is provided
-        let working_hours = 0;
-        if (check_in_time) {
-            const checkIn = new Date(check_in_time);
-            const checkOut = new Date();
-            if (checkOut > checkIn) {
-                working_hours = (checkOut - checkIn) / (1000 * 60 * 60); // Convert to hours
-            }
-        }
+        // When checking in, working hours should be 0 (will be calculated on check-out)
+        const working_hours = 0;
 
         const result = await pool.query(
             `INSERT INTO attendance (user_id, date, check_in_time, status, working_hours)
@@ -136,11 +129,24 @@ export class Attendance {
         const checkOut = new Date(check_out_time);
         const working_hours = (checkOut - checkIn) / (1000 * 60 * 60);
 
+        // Determine status based on working hours
+        // >= 8 hours: present, >= 4 hours: half-day, < 4 hours: absent
+        let status = attendance.status; // Keep existing status if it's leave/holiday/weekend
+        if (attendance.status === 'absent' || attendance.status === 'present' || attendance.status === 'half-day') {
+            if (working_hours >= 8) {
+                status = 'present';
+            } else if (working_hours >= 4) {
+                status = 'half-day';
+            } else {
+                status = 'absent';
+            }
+        }
+
         const result = await pool.query(
             `UPDATE attendance 
-             SET check_out_time = $1, working_hours = $2, updated_at = CURRENT_TIMESTAMP
-             WHERE user_id = $3 AND date = $4 RETURNING *`,
-            [check_out_time, working_hours, user_id, date]
+             SET check_out_time = $1, working_hours = $2, status = $3, updated_at = CURRENT_TIMESTAMP
+             WHERE user_id = $4 AND date = $5 RETURNING *`,
+            [check_out_time, working_hours, status, user_id, date]
         );
         return result.rows[0];
     }

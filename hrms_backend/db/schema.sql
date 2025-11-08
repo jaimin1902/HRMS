@@ -173,6 +173,7 @@ CREATE TABLE IF NOT EXISTS payslips (
     present_days INTEGER DEFAULT 0,
     leave_days INTEGER DEFAULT 0,
     absent_days INTEGER DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'done')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(payroll_run_id, user_id)

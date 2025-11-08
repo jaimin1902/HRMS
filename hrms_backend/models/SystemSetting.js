@@ -10,6 +10,10 @@ export class SystemSetting {
         const result = await pool.query('SELECT * FROM system_settings WHERE key = $1', [key]);
         return result.rows[0];
     }
+    static async findByCompanyName() {
+        const result = await pool.query('SELECT value FROM system_settings WHERE key = $1', ['company_name']);
+        return result.rows[0];
+    }
 
     static async create(data) {
         const { key, value, data_type, description, updated_by } = data;

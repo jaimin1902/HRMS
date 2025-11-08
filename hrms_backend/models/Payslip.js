@@ -104,7 +104,7 @@ export class Payslip {
             'basic_salary', 'hra', 'transport_allowance', 'medical_allowance',
             'other_allowances', 'gross_salary', 'pf_employee', 'pf_employer',
             'professional_tax', 'other_deductions', 'total_deductions', 'net_salary',
-            'working_days', 'present_days', 'leave_days', 'absent_days'
+            'working_days', 'present_days', 'leave_days', 'absent_days', 'status'
         ];
 
         for (const [key, value] of Object.entries(data)) {

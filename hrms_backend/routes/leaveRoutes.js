@@ -7,7 +7,8 @@ import {
     approveLeave,
     rejectLeave,
     cancelLeave,
-    getAllLeaveTypes
+    getAllLeaveTypes,
+    generateLeaveReport
 } from '../controllers/leaveController.js';
 import { authenticate, authorize } from '../middlewares/auth.js';
 
@@ -26,9 +27,10 @@ router.put('/:id/cancel', cancelLeave);
 
 // Admin, HR Officer, Payroll Officer routes
 router.get('/', authorize('admin', 'hr officer', 'payroll officer'), getAllLeaves);
+router.get('/reports', authorize('admin', 'hr officer', 'payroll officer'), generateLeaveReport);
 router.get('/:id', authorize('admin', 'hr officer', 'payroll officer', 'employee'), getLeaveById);
-router.put('/:id/approve', authorize('admin', 'payroll officer'), approveLeave);
-router.put('/:id/reject', authorize('admin', 'payroll officer'), rejectLeave);
+router.put('/:id/approve', authorize('admin', 'payroll officer','hr officer'), approveLeave);
+router.put('/:id/reject', authorize('admin', 'payroll officer', 'hr officer'), rejectLeave);
 
 export default router;
 
