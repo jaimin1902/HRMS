@@ -143,27 +143,52 @@ export const processPayroll = async (req, res, next) => {
             const attendanceAdjustment = -(dailyRate * unpaidDays);
 
             // Calculate adjusted gross salary (after attendance adjustment)
-            const grossSalary = fullGrossSalary + attendanceAdjustment;
+            // If employee is absent entire month, grossSalary will be 0
+            const grossSalary = Math.max(0, fullGrossSalary + attendanceAdjustment);
 
-            // Calculate deductions (based on full basic salary, not prorated)
-            const pfEmployee = (basicSalary * (pfPercentage / 100));
-            const pfEmployer = (basicSalary * (pfPercentage / 100));
-            const professionalTax = salaryStructure.professional_tax || professionalTaxAmount;
-            const otherDeductions = salaryStructure.other_deductions || 0;
+            // Calculate EARNED basic salary (prorated based on attendance)
+            // This is the actual basic salary earned, not the fixed amount
+            const dailyBasicRate = basicSalary / daysInMonth;
+            const earnedBasicSalary = Math.max(0, basicSalary - (dailyBasicRate * unpaidDays));
+
+            // Calculate PF based on EARNED basic salary (not fixed basic salary)
+            // If earned basic = 0, then PF = 0 (no PF deduction for zero earnings)
+            const pfEmployee = earnedBasicSalary > 0 ? (earnedBasicSalary * (pfPercentage / 100)) : 0;
+            const pfEmployer = earnedBasicSalary > 0 ? (earnedBasicSalary * (pfPercentage / 100)) : 0;
+
+            // Calculate other deductions
+            // Professional tax and other deductions only apply if there are earnings
+            const professionalTax = grossSalary > 0 ? (salaryStructure.professional_tax || professionalTaxAmount) : 0;
+            const otherDeductions = grossSalary > 0 ? (salaryStructure.other_deductions || 0) : 0;
             const totalDeductions = pfEmployee + professionalTax + otherDeductions;
 
             // Calculate net salary
-            const netSalary = grossSalary - totalDeductions;
+            // If grossSalary = 0, netSalary = 0 (no negative values)
+            const netSalary = Math.max(0, grossSalary - totalDeductions);
+
+            // Calculate prorated allowances based on earned days
+            // If totalWorkingDays = 0, all allowances = 0
+            const earnedHRA = totalWorkingDays > 0 ? (hra * (totalWorkingDays / daysInMonth)) : 0;
+            const earnedTransportAllowance = totalWorkingDays > 0 ? (transportAllowance * (totalWorkingDays / daysInMonth)) : 0;
+            const earnedMedicalAllowance = totalWorkingDays > 0 ? (medicalAllowance * (totalWorkingDays / daysInMonth)) : 0;
+            const earnedOtherAllowances = totalWorkingDays > 0 ? (otherAllowances * (totalWorkingDays / daysInMonth)) : 0;
+
+            // Log zero earnings scenario for compliance tracking
+            if (grossSalary === 0 || totalWorkingDays === 0) {
+                console.log(`⚠️  Zero earnings for ${employee.first_name} ${employee.last_name} (${employee.employee_id}) - Month: ${payrollRun.month}/${payrollRun.year}`);
+                console.log(`   Status: Unpaid Leave / No Pay | Working Days: ${totalWorkingDays} | Gross: ₹0 | PF: ₹0`);
+            }
 
             // Create payslip
+            // Store the earned amounts (prorated) in the payslip
             const payslip = await Payslip.create({
                 payroll_run_id: id,
                 user_id: employee.id,
-                basic_salary: basicSalary,
-                hra: hra,
-                transport_allowance: transportAllowance,
-                medical_allowance: medicalAllowance,
-                other_allowances: otherAllowances,
+                basic_salary: earnedBasicSalary, // Store earned basic, not fixed basic
+                hra: earnedHRA,
+                transport_allowance: earnedTransportAllowance,
+                medical_allowance: earnedMedicalAllowance,
+                other_allowances: earnedOtherAllowances,
                 gross_salary: grossSalary,
                 pf_employee: pfEmployee,
                 pf_employer: pfEmployer,
@@ -604,7 +629,10 @@ export const getPayslipComputation = async (req, res, next) => {
         const salaryStructure = await SalaryStructure.findActiveByUserId(payslip.user_id);
         const workingDaysPerWeek = await SystemSetting.getValue('working_days_per_week', 5);
         const daysInMonth = payslip.working_days || new Date(payrollRun.year, payrollRun.month, 0).getDate();
-        const dailyRate = payslip.basic_salary / daysInMonth;
+        
+        // Calculate daily rate based on earned basic salary (payslip stores earned amounts)
+        // Handle division by zero if daysInMonth is 0
+        const dailyRate = daysInMonth > 0 ? (payslip.basic_salary / daysInMonth) : 0;
 
         // Worked days breakdown
         const workedDaysBreakdown = [
@@ -625,15 +653,16 @@ export const getPayslipComputation = async (req, res, next) => {
         const totalDays = presentDays + paidLeaveDays;
         const totalAmount = workedDaysBreakdown.reduce((sum, item) => sum + item.amount, 0);
 
-        // Calculate full gross salary for computation display
-        const fullGrossSalary = payslip.basic_salary + payslip.hra + payslip.transport_allowance + 
-                               payslip.medical_allowance + payslip.other_allowances;
+        // Calculate gross salary for computation display
+        // Note: payslip stores EARNED amounts (prorated), not fixed amounts
+        const grossSalary = payslip.basic_salary + payslip.hra + payslip.transport_allowance + 
+                           payslip.medical_allowance + payslip.other_allowances;
         
-        // Calculate percentages for each component (based on wage)
-        const wage = fullGrossSalary; // Total wage is the sum of all components
-        const basicPercent = wage > 0 ? (payslip.basic_salary / wage) * 100 : 0;
-        const hraPercent = wage > 0 ? (payslip.hra / wage) * 100 : 0;
-        const standardPercent = wage > 0 ? (payslip.medical_allowance / wage) * 100 : 0;
+        // Calculate percentages for each component (based on gross salary)
+        // Handle zero gross salary case
+        const basicPercent = grossSalary > 0 ? (payslip.basic_salary / grossSalary) * 100 : 0;
+        const hraPercent = grossSalary > 0 ? ((payslip.hra || 0) / grossSalary) * 100 : 0;
+        const standardPercent = grossSalary > 0 ? ((payslip.medical_allowance || 0) / grossSalary) * 100 : 0;
         
         // Split other_allowances into Performance Bonus, LTA, and Fixed Allowance
         // Based on typical structure: Performance Bonus (15%), LTA (5%), Fixed Allowance (remaining)
@@ -650,7 +679,7 @@ export const getPayslipComputation = async (req, res, next) => {
             { rule_name: 'Performance Bonus', rate_percent: 100, amount: performanceBonus },
             { rule_name: 'Leave Travel Allowance', rate_percent: 100, amount: lta },
             { rule_name: 'Fixed Allowance', rate_percent: 100, amount: fixedAllowance },
-            { rule_name: 'Gross', rate_percent: 100, amount: fullGrossSalary }
+            { rule_name: 'Gross', rate_percent: 100, amount: grossSalary }
         ];
 
         const deductions = [

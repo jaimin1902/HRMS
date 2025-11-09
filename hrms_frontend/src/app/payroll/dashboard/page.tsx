@@ -35,7 +35,7 @@ export default function PayrollDashboard() {
     return Math.max(...data.map(item => parseFloat(item[key] || 0)), 100);
   };
 
-  if (loading) return <div className="p-8">Loading...</div>;
+  if (loading) return <div className="p-4 sm:p-8">Loading...</div>;
 
   const warnings = dashboardData?.warnings || {};
   const payruns = dashboardData?.payruns || [];
@@ -43,12 +43,10 @@ export default function PayrollDashboard() {
   const employeeCounts = dashboardData?.employee_counts?.monthly || [];
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Payroll Dashboard</h1>
-      </div>
+    <div className="space-y-4 sm:space-y-6">
+      <h1 className="text-2xl sm:text-3xl font-bold">Payroll Dashboard</h1>
       
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
         {/* Warnings Section */}
         <Card>
           <CardHeader>

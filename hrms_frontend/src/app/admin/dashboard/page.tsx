@@ -31,10 +31,10 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
+    <div className="space-y-4 sm:space-y-6">
+      <h1 className="text-2xl sm:text-3xl font-bold">Admin Dashboard</h1>
       
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
@@ -69,14 +69,14 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Attendance vs Leaves</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">Attendance vs Leaves</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="w-full" style={{ minWidth: 0 }}>
-              <ResponsiveContainer width="100%" height={300} minWidth={0}>
+              <ResponsiveContainer width="100%" height={250} minWidth={0} className="sm:h-[300px]">
                 <BarChart data={[
                   { name: 'Present', value: stats?.this_month_attendance?.present || 0 },
                   { name: 'Absent', value: stats?.this_month_attendance?.absent || 0 },
@@ -94,11 +94,11 @@ export default function AdminDashboard() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Monthly Payroll</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">Monthly Payroll</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="w-full" style={{ minWidth: 0 }}>
-              <ResponsiveContainer width="100%" height={300} minWidth={0}>
+              <ResponsiveContainer width="100%" height={250} minWidth={0} className="sm:h-[300px]">
                 <LineChart data={stats?.recent_payroll_runs || []}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />

@@ -27,6 +27,19 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Log network errors for debugging
+    if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
+      console.error('Network Error Details:', {
+        message: error.message,
+        code: error.code,
+        config: {
+          url: error.config?.url,
+          baseURL: error.config?.baseURL,
+          method: error.config?.method,
+        }
+      });
+    }
+
     if (error.response?.status === 401) {
       // Unauthorized - clear auth and redirect to login
       cookieStorage.clear();

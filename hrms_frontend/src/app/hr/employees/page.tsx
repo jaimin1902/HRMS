@@ -68,7 +68,11 @@ export default function EmployeesPage() {
                 <TableRow key={emp.id}>
                   <TableCell>{emp.first_name} {emp.last_name}</TableCell>
                   <TableCell>{emp.department_name || '-'}</TableCell>
-                  <TableCell>{emp.role_name}</TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800 whitespace-nowrap">
+                      {emp.role_name}
+                    </span>
+                  </TableCell>
                   <TableCell>{emp.designation || '-'}</TableCell>
                   <TableCell>{formatDate(emp.joining_date)}</TableCell>
                   <TableCell>

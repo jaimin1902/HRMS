@@ -9,7 +9,8 @@
   "scripts": {
     "start": "set NODE_ENV=PRODUCTION & node app.js",
     "dev": "nodemon app.js",
-    "migrate": "node db/runMigrations.js"
+    "migrate": "node db/runMigrations.js",
+    "seed:payroll": "node db/seedPayrollData.js"
   },
   "keywords": [],
   "author": "",

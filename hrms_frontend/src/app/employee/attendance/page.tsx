@@ -68,18 +68,82 @@ export default function EmployeeAttendancePage() {
     }
   };
 
+  // Helper function to get current IST time and convert to UTC
+  const getCurrentISTAsUTC = (dateStr: string): string => {
+    // Get current IST time components
+    const now = new Date();
+    const istFormatter = new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    
+    const parts = istFormatter.formatToParts(now);
+    const partsObj: any = {};
+    parts.forEach(part => {
+      partsObj[part.type] = part.value;
+    });
+    
+    // Use the provided dateStr for date, but current IST time for time
+    const [year, month, day] = dateStr.split('-');
+    const istHours = String(partsObj.hour).padStart(2, '0');
+    const istMinutes = String(partsObj.minute).padStart(2, '0');
+    const istSeconds = String(partsObj.second || '0').padStart(2, '0');
+    
+    // Create ISO string with IST timezone offset (+05:30)
+    // Format: YYYY-MM-DDTHH:mm:ss+05:30
+    const istDateTimeString = `${year}-${month}-${day}T${istHours}:${istMinutes}:${istSeconds}+05:30`;
+    
+    // Create Date object - JavaScript will automatically convert IST to UTC
+    const date = new Date(istDateTimeString);
+    
+    // Return UTC ISO string (this is what PostgreSQL expects)
+    return date.toISOString();
+  };
+
   const handleCheckIn = async () => {
     if (checkingIn) return; // Prevent double-click
     
     setCheckingIn(true);
     try {
       const now = new Date();
-      const today = now.toISOString().split('T')[0];
+      // Get local date in YYYY-MM-DD format (IST)
+      const istDateFormatter = new Intl.DateTimeFormat('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+      const datePartsObj = istDateFormatter.formatToParts(now);
+      const dateParts: any = {};
+      datePartsObj.forEach(part => {
+        dateParts[part.type] = part.value;
+      });
+      const today = `${dateParts.year}-${dateParts.month}-${dateParts.day}`;
       
-      // Use current local date and time
-      const checkInTime = now.toISOString();
+      // Get UTC time from current IST time
+      const checkInTime = getCurrentISTAsUTC(today);
       
-      console.log('Checking in...', { date: today, check_in_time: checkInTime });
+      // Get current IST time for logging
+      const istTime = now.toLocaleTimeString('en-IN', { 
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+      
+      console.log('Checking in...', { 
+        localDate: today, 
+        currentISTTime: istTime,
+        checkInTimeUTC: checkInTime,
+        checkInTimeIST: new Date(checkInTime).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })
+      });
       
       const response = await api.post('/attendance/mark', {
         date: today,
@@ -114,12 +178,38 @@ export default function EmployeeAttendancePage() {
     setCheckingOut(true);
     try {
       const now = new Date();
-      const today = now.toISOString().split('T')[0];
+      // Get local date in YYYY-MM-DD format (IST)
+      const istDateFormatter = new Intl.DateTimeFormat('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+      const parts = istDateFormatter.formatToParts(now);
+      const dateParts: any = {};
+      parts.forEach(part => {
+        dateParts[part.type] = part.value;
+      });
+      const today = `${dateParts.year}-${dateParts.month}-${dateParts.day}`;
       
-      // Use current local date and time
-      const checkOutTime = now.toISOString();
+      // Get UTC time from current IST time
+      const checkOutTime = getCurrentISTAsUTC(today);
       
-      console.log('Checking out...', { date: today, check_out_time: checkOutTime });
+      // Get current IST time for logging
+      const istTime = now.toLocaleTimeString('en-IN', { 
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+      
+      console.log('Checking out...', { 
+        localDate: today, 
+        currentISTTime: istTime,
+        checkOutTimeUTC: checkOutTime,
+        checkOutTimeIST: new Date(checkOutTime).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })
+      });
       
       const response = await api.post('/attendance/checkout', {
         date: today,
@@ -150,17 +240,8 @@ export default function EmployeeAttendancePage() {
   const formatTime = (time: string | null) => {
     if (!time) return '-';
     try {
-      // Parse the timestamp - handle both ISO strings and date strings
-      let date: Date;
-      if (typeof time === 'string' && time.includes('T')) {
-        // ISO string with timezone
-        date = new Date(time);
-      } else if (typeof time === 'string') {
-        // Date string without timezone - assume it's already in local time
-        date = new Date(time + 'Z'); // Add Z to indicate UTC, then convert to local
-      } else {
-        date = new Date(time);
-      }
+      // Parse the timestamp - backend returns UTC timestamps
+      const date = new Date(time);
       
       // Check if date is valid
       if (isNaN(date.getTime())) {
@@ -168,12 +249,13 @@ export default function EmployeeAttendancePage() {
         return '-';
       }
       
-      // Format in local timezone
-      return date.toLocaleTimeString('en-US', { 
+      // Convert UTC to IST (Asia/Kolkata) and format
+      // IST is UTC+5:30
+      return date.toLocaleTimeString('en-IN', { 
         hour: '2-digit', 
         minute: '2-digit',
         hour12: true,
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        timeZone: 'Asia/Kolkata'
       });
     } catch (error) {
       console.error('Error formatting time:', error, time);
@@ -183,13 +265,21 @@ export default function EmployeeAttendancePage() {
 
   const calculateWorkingHours = (checkIn: string | null, checkOut: string | null) => {
     if (!checkIn || !checkOut) return '0:00';
-    const start = new Date(checkIn);
-    const end = new Date(checkOut);
-    const diffMs = end.getTime() - start.getTime();
-    const diffHours = diffMs / (1000 * 60 * 60);
-    const hours = Math.floor(diffHours);
-    const minutes = Math.floor((diffHours - hours) * 60);
-    return `${hours}:${minutes.toString().padStart(2, '0')}`;
+    try {
+      // Parse UTC timestamps from backend
+      const start = new Date(checkIn);
+      const end = new Date(checkOut);
+      
+      // Calculate difference in milliseconds
+      const diffMs = end.getTime() - start.getTime();
+      const diffHours = diffMs / (1000 * 60 * 60);
+      const hours = Math.floor(diffHours);
+      const minutes = Math.floor((diffHours - hours) * 60);
+      return `${hours}:${minutes.toString().padStart(2, '0')}`;
+    } catch (error) {
+      console.error('Error calculating working hours:', error);
+      return '0:00';
+    }
   };
 
   const calculateExtraHours = (workingHours: string) => {
@@ -223,14 +313,14 @@ export default function EmployeeAttendancePage() {
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
     'July', 'August', 'September', 'October', 'November', 'December'];
 
-  if (loading) return <div className="p-8">Loading...</div>;
+  if (loading) return <div className="p-4 sm:p-8">Loading...</div>;
 
   return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold mb-6">My Attendance</h1>
+    <div className="space-y-4 sm:space-y-6">
+      <h1 className="text-2xl sm:text-3xl font-bold">My Attendance</h1>
       
       {/* Today's Attendance Card */}
-      <Card className="mb-6">
+      <Card>
         <CardHeader>
           <CardTitle>Today's Attendance</CardTitle>
         </CardHeader>
@@ -276,7 +366,7 @@ export default function EmployeeAttendancePage() {
       </Card>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -315,8 +405,8 @@ export default function EmployeeAttendancePage() {
       {/* Monthly Attendance Table */}
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Monthly Attendance</CardTitle>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <CardTitle className="text-lg sm:text-xl">Monthly Attendance</CardTitle>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -348,15 +438,18 @@ export default function EmployeeAttendancePage() {
           </p>
         </CardHeader>
         <CardContent>
-          <Table>
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <div className="inline-block min-w-full align-middle">
+              <div className="overflow-hidden">
+                <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Check-In</TableHead>
-                <TableHead>Check-Out</TableHead>
-                <TableHead>Work Hours</TableHead>
-                <TableHead>Extra Hours</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead className="whitespace-nowrap">Date</TableHead>
+                <TableHead className="whitespace-nowrap">Check-In</TableHead>
+                <TableHead className="whitespace-nowrap">Check-Out</TableHead>
+                <TableHead className="hidden sm:table-cell whitespace-nowrap">Work Hours</TableHead>
+                <TableHead className="hidden md:table-cell whitespace-nowrap">Extra Hours</TableHead>
+                <TableHead className="whitespace-nowrap">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -394,7 +487,10 @@ export default function EmployeeAttendancePage() {
                 })
               )}
             </TableBody>
-          </Table>
+                </Table>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
