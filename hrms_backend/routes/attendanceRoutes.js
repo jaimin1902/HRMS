@@ -5,7 +5,9 @@ import {
     getMyAttendance,
     getAllAttendance,
     getAttendanceById,
-    updateAttendance
+    updateAttendance,
+    markAttendanceForUser,
+    checkOutForUser
 } from '../controllers/attendanceController.js';
 import { authenticate, authorize } from '../middlewares/auth.js';
 
@@ -18,6 +20,10 @@ router.use(authenticate);
 router.post('/mark', markAttendance);
 router.post('/checkout', checkOut);
 router.get('/my', getMyAttendance);
+
+// Admin/HR routes for marking attendance for any user (must come before /:id route)
+router.post('/admin/mark', authorize('admin', 'hr officer'), markAttendanceForUser);
+router.post('/admin/checkout', authorize('admin', 'hr officer'), checkOutForUser);
 
 // Admin, HR Officer, Payroll Officer can view all attendance
 router.get('/', authorize('admin', 'hr officer', 'payroll officer'), getAllAttendance);

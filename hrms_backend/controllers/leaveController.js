@@ -256,4 +256,48 @@ export const getAllLeaveTypes = async (req, res, next) => {
     }
 };
 
+// Generate leave report
+export const generateLeaveReport = async (req, res, next) => {
+    try {
+        const { status, start_date, end_date, user_id, leave_type_id, format } = req.query;
+
+        const filters = {};
+        if (status) filters.status = status;
+        if (start_date) filters.start_date = start_date;
+        if (end_date) filters.end_date = end_date;
+        if (user_id) filters.user_id = parseInt(user_id);
+        if (leave_type_id) filters.leave_type_id = parseInt(leave_type_id);
+
+        const leaves = await LeaveApplication.findAll(filters);
+
+        // Format: 'json' or 'csv'
+        if (format === 'csv') {
+            // Generate CSV
+            const csvHeader = 'Employee ID,Employee Name,Leave Type,Start Date,End Date,Total Days,Status,Applied At,Approved By\n';
+            const csvRows = leaves.map(l => 
+                `${l.employee_id || ''},"${l.employee_name || ''}","${l.leave_type_name || ''}",${l.start_date || ''},${l.end_date || ''},${l.total_days || 0},${l.status || 'pending'},${l.applied_at || ''},"${l.approved_by_name || ''}"`
+            ).join('\n');
+            
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', `attachment; filename="leave_report_${start_date || 'all'}_${end_date || 'all'}.csv"`);
+            res.send(csvHeader + csvRows);
+        } else {
+            // Return JSON
+            res.json({
+                success: true,
+                count: leaves.length,
+                data: leaves,
+                summary: {
+                    total_days: leaves.reduce((sum, l) => sum + parseFloat(l.total_days || 0), 0),
+                    approved: leaves.filter(l => l.status === 'approved').length,
+                    pending: leaves.filter(l => l.status === 'pending').length,
+                    rejected: leaves.filter(l => l.status === 'rejected').length
+                }
+            });
+        }
+    } catch (error) {
+        next(error);
+    }
+};
+
 

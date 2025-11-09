@@ -73,21 +73,30 @@ export const register = async (req, res, next) => {
 
 export const login = async (req, res, next) => {
     try {
-        const { email, password } = req.body;
+        const { email, employee_id, password } = req.body;
 
-        if (!email || !password) {
+        // Support both email and employee_id for login
+        const loginIdentifier = email || employee_id;
+
+        if (!loginIdentifier || !password) {
             return res.status(400).json({
                 success: false,
-                message: 'Email and password are required'
+                message: 'Email/Employee ID and password are required'
             });
         }
 
-        // Find user
-        const user = await User.findByEmail(email);
+        // Find user by email or employee_id
+        let user;
+        if (email) {
+            user = await User.findByEmail(email);
+        } else if (employee_id) {
+            user = await User.findByEmployeeId(employee_id);
+        }
+
         if (!user) {
             return res.status(401).json({
                 success: false,
-                message: 'Invalid email or password'
+                message: 'Invalid email/employee ID or password'
             });
         }
 
@@ -104,7 +113,7 @@ export const login = async (req, res, next) => {
         if (!isPasswordValid) {
             return res.status(401).json({
                 success: false,
-                message: 'Invalid email or password'
+                message: 'Invalid email/employee ID or password'
             });
         }
 

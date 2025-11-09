@@ -13,8 +13,8 @@ const router = express.Router();
 // All routes require authentication
 router.use(authenticate);
 
-// Admin, HR Officer can access all user routes
-router.get('/', authorize('admin', 'hr officer'), getAllUsers);
+// Admin, HR Officer, Payroll Officer can access all user routes
+router.get('/', authorize('admin', 'hr officer', 'payroll officer'), getAllUsers);
 router.get('/:id', getUserById); // Employees can view their own profile, others can view any
 router.post('/', authorize('admin', 'hr officer'), createUser);
 router.put('/:id', authorize('admin', 'hr officer'), updateUser);

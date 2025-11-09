@@ -77,6 +77,7 @@ export class User {
             phone, date_of_birth, address, role_id, department_id,
             designation, joining_date, profile_picture
         } = data;
+        console.log("🚀 ~ User ~ create ~ data:", data)
 
         const result = await pool.query(
             `INSERT INTO users (
