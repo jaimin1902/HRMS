@@ -142,26 +142,30 @@ export default function ProfilePage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">My Profile</h1>
-          <p className="text-gray-600">Manage your profile information</p>
+      <div className="max-w-5xl mx-auto space-y-6">
+        {/* Header Section */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">My Profile</h1>
+          <p className="text-gray-600 text-sm">Manage your profile information and account settings</p>
         </div>
 
         {message && (
-          <div className={`rounded-md p-3 text-sm ${
-            message.includes('success') ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+          <div className={`rounded-lg p-4 text-sm border ${
+            message.includes('success') 
+              ? 'bg-green-50 text-green-800 border-green-200' 
+              : 'bg-red-50 text-red-800 border-red-200'
           }`}>
             {message}
           </div>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Personal Information</CardTitle>
+        <Card className="shadow-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl">Personal Information</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">Update your personal details and contact information</p>
           </CardHeader>
           <CardContent>
-            <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-4">
+            <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="first_name">First Name</Label>
@@ -212,19 +216,22 @@ export default function ProfilePage() {
                   {...profileForm.register('address')}
                 />
               </div>
-              <Button type="submit" disabled={loading}>
-                {loading ? 'Saving...' : 'Save Changes'}
-              </Button>
+              <div className="flex justify-end pt-4 border-t">
+                <Button type="submit" disabled={loading} size="lg" className="min-w-[120px]">
+                  {loading ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </div>
             </form>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Change Password</CardTitle>
+        <Card className="shadow-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl">Change Password</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">Update your password to keep your account secure</p>
           </CardHeader>
           <CardContent>
-            <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
+            <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="current_password">Current Password</Label>
                 <Input
@@ -264,19 +271,22 @@ export default function ProfilePage() {
                   </p>
                 )}
               </div>
-              <Button type="submit" disabled={passwordLoading}>
-                {passwordLoading ? 'Changing...' : 'Change Password'}
-              </Button>
+              <div className="flex justify-end pt-4 border-t">
+                <Button type="submit" disabled={passwordLoading} size="lg" className="min-w-[140px]">
+                  {passwordLoading ? 'Changing...' : 'Change Password'}
+                </Button>
+              </div>
             </form>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <Card className="shadow-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-xl">
               <DollarSign className="h-5 w-5" />
               Salary Configuration
             </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">View your current salary structure and benefits</p>
           </CardHeader>
           <CardContent>
             {salaryLoading ? (

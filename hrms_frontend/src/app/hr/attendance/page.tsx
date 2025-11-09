@@ -88,17 +88,8 @@ export default function AttendancePage() {
   const formatTime = (time: string | null) => {
     if (!time) return '-';
     try {
-      // Parse the timestamp - handle both ISO strings and date strings
-      let date: Date;
-      if (typeof time === 'string' && time.includes('T')) {
-        // ISO string with timezone
-        date = new Date(time);
-      } else if (typeof time === 'string') {
-        // Date string without timezone - assume it's already in local time
-        date = new Date(time + 'Z'); // Add Z to indicate UTC, then convert to local
-      } else {
-        date = new Date(time);
-      }
+      // Parse the timestamp - backend returns UTC timestamps
+      const date = new Date(time);
       
       // Check if date is valid
       if (isNaN(date.getTime())) {
@@ -106,12 +97,13 @@ export default function AttendancePage() {
         return '-';
       }
       
-      // Format in local timezone
-      return date.toLocaleTimeString('en-US', { 
+      // Convert UTC to IST (Asia/Kolkata) and format
+      // IST is UTC+5:30
+      return date.toLocaleTimeString('en-IN', { 
         hour: '2-digit', 
         minute: '2-digit',
         hour12: true,
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        timeZone: 'Asia/Kolkata'
       });
     } catch (error) {
       console.error('Error formatting time:', error, time);
@@ -149,27 +141,66 @@ export default function AttendancePage() {
     });
   };
 
+  // Helper function to get current IST time and convert to UTC
+  const getCurrentISTAsUTC = (dateStr: string): string => {
+    // Get current IST time components
+    const now = new Date();
+    const istFormatter = new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    
+    const parts = istFormatter.formatToParts(now);
+    const partsObj: any = {};
+    parts.forEach(part => {
+      partsObj[part.type] = part.value;
+    });
+    
+    // Use the provided dateStr for date, but current IST time for time
+    const [year, month, day] = dateStr.split('-');
+    const istHours = String(partsObj.hour).padStart(2, '0');
+    const istMinutes = String(partsObj.minute).padStart(2, '0');
+    const istSeconds = String(partsObj.second || '0').padStart(2, '0');
+    
+    // Create ISO string with IST timezone offset (+05:30)
+    // Format: YYYY-MM-DDTHH:mm:ss+05:30
+    const istDateTimeString = `${year}-${month}-${day}T${istHours}:${istMinutes}:${istSeconds}+05:30`;
+    
+    // Create Date object - JavaScript will automatically convert IST to UTC
+    const date = new Date(istDateTimeString);
+    
+    // Return UTC ISO string (this is what PostgreSQL expects)
+    return date.toISOString();
+  };
+
   const handleCheckIn = async (userId: number) => {
     if (processingUsers.has(userId)) return;
     
     setProcessingUsers(prev => new Set(prev).add(userId));
     try {
+      const checkInTime = getCurrentISTAsUTC(selectedDate);
+      
+      // Get current IST time for logging
       const now = new Date();
-      // Parse selected date as local date (YYYY-MM-DD format)
-      const [year, month, day] = selectedDate.split('-').map(Number);
-      
-      // Create date in local timezone with selected date and current time
-      const localDate = new Date(year, month - 1, day, now.getHours(), now.getMinutes(), now.getSeconds());
-      
-      // Convert to ISO string (this automatically handles timezone conversion)
-      const checkInTime = localDate.toISOString();
+      const istTime = now.toLocaleTimeString('en-IN', { 
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
       
       console.log('Check-in:', { 
-        selectedDate, 
-        localTime: localDate.toLocaleString(),
-        checkInTime,
-        hours: now.getHours(),
-        minutes: now.getMinutes()
+        selectedDate,
+        currentISTTime: istTime,
+        checkInTimeUTC: checkInTime,
+        checkInTimeIST: new Date(checkInTime).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })
       });
       
       await api.post('/attendance/admin/mark', {
@@ -197,22 +228,23 @@ export default function AttendancePage() {
     
     setProcessingUsers(prev => new Set(prev).add(userId));
     try {
+      const checkOutTime = getCurrentISTAsUTC(selectedDate);
+      
+      // Get current IST time for logging
       const now = new Date();
-      // Parse selected date as local date (YYYY-MM-DD format)
-      const [year, month, day] = selectedDate.split('-').map(Number);
-      
-      // Create date in local timezone with selected date and current time
-      const localDate = new Date(year, month - 1, day, now.getHours(), now.getMinutes(), now.getSeconds());
-      
-      // Convert to ISO string (this automatically handles timezone conversion)
-      const checkOutTime = localDate.toISOString();
+      const istTime = now.toLocaleTimeString('en-IN', { 
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
       
       console.log('Check-out:', { 
-        selectedDate, 
-        localTime: localDate.toLocaleString(),
-        checkOutTime,
-        hours: now.getHours(),
-        minutes: now.getMinutes()
+        selectedDate,
+        currentISTTime: istTime,
+        checkOutTimeUTC: checkOutTime,
+        checkOutTimeIST: new Date(checkOutTime).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })
       });
       
       await api.post('/attendance/admin/checkout', {
@@ -268,20 +300,20 @@ export default function AttendancePage() {
   if (loading && users.length === 0) return <div className="p-8">Loading...</div>;
 
   return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold mb-6">Attendance Management</h1>
+    <div className="space-y-4 sm:space-y-6">
+      <h1 className="text-2xl sm:text-3xl font-bold">Attendance Management</h1>
       
       {/* Filters Card */}
-      <Card className="mb-6">
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
             <Filter className="h-5 w-5" />
             Filters & Date Navigation
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Date Navigation */}
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
             <Button
               variant="outline"
               size="sm"
@@ -319,7 +351,7 @@ export default function AttendancePage() {
           </p>
 
           {/* Search and Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <Input
                 placeholder="Search by name or ID..."
@@ -360,7 +392,10 @@ export default function AttendancePage() {
       {/* Attendance Table */}
       <Card>
         <CardHeader>
-          <CardTitle>All Employees Attendance - {formatDisplayDate(selectedDate)}</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">
+            <span className="hidden sm:inline">All Employees Attendance - </span>
+            {formatDisplayDate(selectedDate)}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {getFilteredUsers().length === 0 ? (
@@ -368,8 +403,10 @@ export default function AttendancePage() {
               No employees found
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <div className="inline-block min-w-full align-middle">
+                <div className="overflow-hidden">
+                  <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Employee</TableHead>
@@ -394,18 +431,18 @@ export default function AttendancePage() {
                     
                     return (
                       <TableRow key={user.id}>
-                        <TableCell className="font-medium">
+                        <TableCell className="font-medium whitespace-nowrap">
                           {user.first_name} {user.last_name}
                         </TableCell>
-                        <TableCell>{user.employee_id}</TableCell>
-                        <TableCell>
+                        <TableCell className="hidden sm:table-cell whitespace-nowrap">{user.employee_id}</TableCell>
+                        <TableCell className="hidden md:table-cell">
                           {departments.find(d => d.id === user.department_id)?.name || '-'}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="whitespace-nowrap">
                           {hasCheckIn ? (
                             <div>
                               <div className="font-medium">{formatTime(attendanceRecord.check_in_time)}</div>
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-xs text-muted-foreground hidden sm:block">
                                 {new Date(attendanceRecord.check_in_time).toLocaleDateString('en-US', {
                                   month: 'short',
                                   day: 'numeric',
@@ -415,11 +452,11 @@ export default function AttendancePage() {
                             </div>
                           ) : '-'}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="whitespace-nowrap">
                           {hasCheckOut ? (
                             <div>
                               <div className="font-medium">{formatTime(attendanceRecord.check_out_time)}</div>
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-xs text-muted-foreground hidden sm:block">
                                 {new Date(attendanceRecord.check_out_time).toLocaleDateString('en-US', {
                                   month: 'short',
                                   day: 'numeric',
@@ -429,7 +466,7 @@ export default function AttendancePage() {
                             </div>
                           ) : '-'}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden lg:table-cell whitespace-nowrap">
                           {hasCheckIn && hasCheckOut ? workHours : '-'}
                         </TableCell>
                         <TableCell>
@@ -457,7 +494,9 @@ export default function AttendancePage() {
                     );
                   })}
                 </TableBody>
-              </Table>
+                  </Table>
+                </div>
+              </div>
             </div>
           )}
         </CardContent>

@@ -54,18 +54,38 @@ export default function SalaryStructurePage() {
   const fetchUsers = async () => {
     try {
       const response = await api.get('/users?is_active=true');
-      setUsers(response.data.data);
-    } catch (error) {
+      setUsers(response.data.data || []);
+    } catch (error: any) {
       console.error('Failed to fetch users:', error);
+      if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
+        console.error('Network Error: Backend server may not be running');
+        alert('Network Error: Please check if the backend server is running on port 4000');
+      } else if (error.response?.status === 401) {
+        alert('Unauthorized: Please login again');
+      } else if (error.response?.status === 403) {
+        alert('Forbidden: You do not have permission to access users');
+      } else {
+        console.error('Error fetching users:', error.response?.data || error.message);
+      }
     }
   };
 
   const fetchTemplates = async () => {
     try {
       const response = await api.get('/admin/salary-component-templates?is_active=true');
-      setTemplates(response.data.data);
-    } catch (error) {
+      setTemplates(response.data.data || []);
+    } catch (error: any) {
       console.error('Failed to fetch templates:', error);
+      if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
+        console.error('Network Error: Backend server may not be running');
+        alert('Network Error: Please check if the backend server is running on port 4000');
+      } else if (error.response?.status === 401) {
+        alert('Unauthorized: Please login again');
+      } else if (error.response?.status === 403) {
+        alert('Forbidden: You do not have permission to access salary component templates');
+      } else {
+        console.error('Error fetching templates:', error.response?.data || error.message);
+      }
     } finally {
       setLoadingTemplates(false);
     }

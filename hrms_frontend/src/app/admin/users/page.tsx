@@ -42,10 +42,10 @@ export default function UsersPage() {
   if (loading) return <div className="p-8">Loading...</div>;
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Users</h1>
-        <Button onClick={() => router.push('/admin/users/new')}>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-2xl sm:text-3xl font-bold">Users</h1>
+        <Button onClick={() => router.push('/admin/users/new')} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           Add User
         </Button>
@@ -53,21 +53,24 @@ export default function UsersPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>All Users</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">All Users</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <div className="inline-block min-w-full align-middle">
+              <div className="overflow-hidden">
+                <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Employee ID</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Designation</TableHead>
-                <TableHead>Joining Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead className="whitespace-nowrap">Employee ID</TableHead>
+                <TableHead className="whitespace-nowrap">Name</TableHead>
+                <TableHead className="hidden sm:table-cell whitespace-nowrap">Email</TableHead>
+                <TableHead className="hidden md:table-cell whitespace-nowrap">Department</TableHead>
+                <TableHead className="whitespace-nowrap">Role</TableHead>
+                <TableHead className="hidden lg:table-cell whitespace-nowrap">Designation</TableHead>
+                <TableHead className="hidden md:table-cell whitespace-nowrap">Joining Date</TableHead>
+                <TableHead className="whitespace-nowrap">Status</TableHead>
+                <TableHead className="whitespace-nowrap">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -88,17 +91,17 @@ export default function UsersPage() {
               ) : (
                 users.map((user) => (
                   <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.employee_id}</TableCell>
-                    <TableCell>{user.first_name} {user.last_name}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>{user.department_name || '-'}</TableCell>
+                    <TableCell className="font-medium whitespace-nowrap">{user.employee_id}</TableCell>
+                    <TableCell className="whitespace-nowrap">{user.first_name} {user.last_name}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{user.email}</TableCell>
+                    <TableCell className="hidden md:table-cell">{user.department_name || '-'}</TableCell>
                     <TableCell>
-                      <span className="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800 whitespace-nowrap">
                         {user.role_name}
                       </span>
                     </TableCell>
-                    <TableCell>{user.designation || '-'}</TableCell>
-                    <TableCell>{formatDate(user.joining_date)}</TableCell>
+                    <TableCell className="hidden lg:table-cell">{user.designation || '-'}</TableCell>
+                    <TableCell className="hidden md:table-cell">{formatDate(user.joining_date)}</TableCell>
                     <TableCell>
                       <span className={`px-2 py-1 rounded text-xs ${
                         user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
@@ -130,7 +133,10 @@ export default function UsersPage() {
                 ))
               )}
             </TableBody>
-          </Table>
+                </Table>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

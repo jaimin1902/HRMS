@@ -1,15 +1,16 @@
 import dotenv from 'dotenv';
+import nodemailer from 'nodemailer';
 
 dotenv.config({ path: './.env' });
 
 /**
- * Email service using API-based providers (Resend, SendGrid, Mailgun, etc.)
- * No SMTP configuration required - uses HTTP API calls
+ * Email service supporting both SMTP (Nodemailer) and API-based providers
+ * Supports: SMTP, Resend, SendGrid, Mailgun, AWS SES
  */
 
 /**
- * Sends email using API-based email service
- * Supports multiple providers: Resend, SendGrid, Mailgun, AWS SES
+ * Sends email using configured email service
+ * Supports multiple providers: SMTP (Nodemailer), Resend, SendGrid, Mailgun, AWS SES
  * @param {Object} emailData - Email data object
  * @param {string} emailData.to - Recipient email
  * @param {string} emailData.subject - Email subject
@@ -19,10 +20,12 @@ dotenv.config({ path: './.env' });
  * @returns {Promise<boolean>} - Success status
  */
 const sendEmailViaAPI = async (emailData) => {
-    const emailProvider = process.env.EMAIL_PROVIDER || 'resend'; // resend, sendgrid, mailgun, aws-ses
+    const emailProvider = process.env.EMAIL_PROVIDER || 'smtp'; // smtp, resend, sendgrid, mailgun, aws-ses
     
     try {
         switch (emailProvider.toLowerCase()) {
+            case 'smtp':
+                return await sendViaSMTP(emailData);
             case 'resend':
                 return await sendViaResend(emailData);
             case 'sendgrid':
@@ -32,11 +35,154 @@ const sendEmailViaAPI = async (emailData) => {
             case 'aws-ses':
                 return await sendViaAWSSES(emailData);
             default:
-                console.warn(`Unknown email provider: ${emailProvider}. Using Resend as fallback.`);
-                return await sendViaResend(emailData);
+                console.warn(`Unknown email provider: ${emailProvider}. Using SMTP as fallback.`);
+                return await sendViaSMTP(emailData);
         }
     } catch (error) {
         console.error(`Error sending email via ${emailProvider}:`, error);
+        return false;
+    }
+};
+
+/**
+ * Send email via SMTP using Nodemailer
+ * Only requires SMTP_USER and SMTP_PASSWORD - uses smart defaults for Gmail
+ * @param {Object} emailData - Email data
+ * @returns {Promise<boolean>} - Success status
+ */
+const sendViaSMTP = async (emailData) => {
+    try {
+        // Only require SMTP_USER and SMTP_PASSWORD - use smart defaults
+        const smtpUser = process.env.SMTP_USER;
+        const smtpPassword = process.env.SMTP_PASSWORD;
+
+        // Validate required fields
+        if (!smtpUser || !smtpPassword) {
+            console.error('❌ SMTP configuration incomplete. Required: SMTP_USER, SMTP_PASSWORD');
+            console.error('   Current config:', {
+                user: smtpUser ? '✓' : '✗',
+                password: smtpPassword ? '✓' : '✗'
+            });
+            return false;
+        }
+
+        // Auto-detect email provider and set defaults
+        let smtpHost, smtpPort, smtpSecure;
+        
+        if (smtpUser.includes('@gmail.com')) {
+            // Gmail configuration
+            smtpHost = 'smtp.gmail.com';
+            smtpPort = 587;
+            smtpSecure = false;
+        } else if (smtpUser.includes('@outlook.com') || smtpUser.includes('@hotmail.com')) {
+            // Outlook/Hotmail configuration
+            smtpHost = 'smtp-mail.outlook.com';
+            smtpPort = 587;
+            smtpSecure = false;
+        } else if (smtpUser.includes('@yahoo.com')) {
+            // Yahoo configuration
+            smtpHost = 'smtp.mail.yahoo.com';
+            smtpPort = 587;
+            smtpSecure = false;
+        } else {
+            // Default to Gmail settings (can be overridden with env vars)
+            smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
+            smtpPort = parseInt(process.env.SMTP_PORT || '587');
+            smtpSecure = process.env.SMTP_SECURE === 'true' || process.env.SMTP_SECURE === '1';
+        }
+
+        const smtpFrom = smtpUser;
+        const smtpFromName = process.env.SMTP_FROM_NAME || process.env.EMAIL_FROM_NAME || 'HRMS System';
+
+        console.log(`📧 Using SMTP: ${smtpHost}:${smtpPort} (user: ${smtpUser})`);
+
+        // Create transporter
+        const transporter = nodemailer.createTransport({
+            host: smtpHost,
+            port: smtpPort,
+            secure: smtpSecure, // true for 465, false for other ports
+            auth: {
+                user: smtpUser,
+                pass: smtpPassword,
+            },
+            // Additional options for better compatibility
+            tls: {
+                rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== 'false'
+            }
+        });
+
+        // Verify connection
+        try {
+            await transporter.verify();
+            console.log('✅ SMTP server connection verified successfully');
+        } catch (verifyError) {
+            console.error('❌ SMTP connection verification failed');
+            
+            // Provide specific guidance for common errors
+            if (verifyError.code === 'EAUTH') {
+                console.error('\n🔐 AUTHENTICATION ERROR - Quick Fix:');
+                if (smtpHost && smtpHost.includes('gmail.com')) {
+                    console.error('   Gmail requires App Password (NOT regular password):');
+                    console.error('   1. Enable 2-Step Verification: https://myaccount.google.com/security');
+                    console.error('   2. Generate App Password: https://myaccount.google.com/apppasswords');
+                    console.error('   3. Copy the 16-character password (remove spaces!)');
+                    console.error('   4. Update SMTP_PASSWORD in .env file');
+                    console.error('   Example: SMTP_PASSWORD=abcdefghijklmnop');
+                } else {
+                    console.error('   1. Verify SMTP_USER and SMTP_PASSWORD are correct');
+                    console.error('   2. Check if your email provider requires App Password');
+                }
+            } else if (verifyError.code === 'ECONNECTION') {
+                console.error('\n🔌 CONNECTION ERROR:');
+                console.error(`   - SMTP_HOST: ${smtpHost}`);
+                console.error(`   - SMTP_PORT: ${smtpPort}`);
+                console.error('   - Check firewall/network settings');
+            } else if (verifyError.code === 'ETIMEDOUT') {
+                console.error('\n⏱️ TIMEOUT ERROR:');
+                console.error('   - Check network connectivity');
+                console.error('   - Verify SMTP server is accessible');
+            }
+            return false;
+        }
+
+        // Send email
+        const mailOptions = {
+            from: `${smtpFromName} <${smtpFrom}>`,
+            to: emailData.to,
+            subject: emailData.subject,
+            text: emailData.text,
+            html: emailData.html,
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log('✅ Email sent via SMTP successfully. Message ID:', info.messageId);
+        return true;
+    } catch (error) {
+        console.error('❌ Error sending email via SMTP:', error.message);
+        
+        // Provide specific guidance for common errors
+        if (error.code === 'EAUTH') {
+            console.error('\n🔐 AUTHENTICATION FAILED');
+            if (smtpHost && smtpHost.includes('gmail.com')) {
+                console.error('   Gmail requires App Password (NOT regular password):');
+                console.error('   1. Go to: https://myaccount.google.com/apppasswords');
+                console.error('   2. Generate App Password for "Mail"');
+                console.error('   3. Copy 16-character password (remove spaces!)');
+                console.error('   4. Update SMTP_PASSWORD in .env');
+                console.error('   Example: SMTP_PASSWORD=abcdefghijklmnop');
+            } else {
+                console.error('   - Verify SMTP_USER and SMTP_PASSWORD are correct');
+                console.error('   - Check if your provider requires App Password');
+            }
+        } else if (error.code === 'ECONNECTION') {
+            console.error('\n🔌 CONNECTION FAILED');
+            console.error(`   - SMTP_HOST: ${smtpHost}`);
+            console.error(`   - SMTP_PORT: ${smtpPort}`);
+            console.error('   - Check firewall/network settings');
+        } else if (error.code === 'ETIMEDOUT') {
+            console.error('\n⏱️ CONNECTION TIMEOUT');
+            console.error('   - Check network connectivity');
+        }
         return false;
     }
 };

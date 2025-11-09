@@ -46,12 +46,21 @@ export default function PayrunPage() {
   const fetchPayruns = async () => {
     try {
       const response = await api.get('/payroll/runs');
-      setPayruns(response.data.data);
-      if (response.data.data.length > 0) {
+      setPayruns(response.data.data || []);
+      if (response.data.data && response.data.data.length > 0) {
         setSelectedPayrun(response.data.data[0]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch payruns:', error);
+      if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
+        alert('Network Error: Please check if the backend server is running on port 4000');
+      } else if (error.response?.status === 401) {
+        alert('Unauthorized: Please login again');
+      } else if (error.response?.status === 403) {
+        alert('Forbidden: You do not have permission to access this resource');
+      } else {
+        alert(`Error: ${error.response?.data?.message || error.message || 'Failed to fetch payruns'}`);
+      }
     }
   };
 
@@ -119,19 +128,17 @@ export default function PayrunPage() {
   };
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Payrun</h1>
-      </div>
+    <div className="space-y-4 sm:space-y-6">
+      <h1 className="text-2xl sm:text-3xl font-bold">Payrun</h1>
       
-      <div className="grid gap-8 md:grid-cols-2 mb-8">
+      <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Generate Payroll</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="month">Month</Label>
                   <Select
@@ -163,7 +170,7 @@ export default function PayrunPage() {
                   )}
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Button type="submit" className="flex-1" disabled={loading || processing}>
                   {processing ? 'Processing...' : loading ? 'Creating...' : 'Payrun'}
                 </Button>
@@ -210,7 +217,7 @@ export default function PayrunPage() {
       {selectedPayrun && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
+            <CardTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-lg sm:text-xl">
               <span>Payrun {getMonthName(selectedPayrun.month)} {selectedPayrun.year}</span>
               <div className="flex gap-2">
                 {getStatusBadge(selectedPayrun.status)}
@@ -229,7 +236,7 @@ export default function PayrunPage() {
           </CardHeader>
           <CardContent>
             <div className="mb-4 p-4 bg-gray-50 rounded">
-              <div className="grid grid-cols-3 gap-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                 <div>
                   <div className="text-gray-500">Employer Cost</div>
                   <div className="font-semibold text-lg">
@@ -252,16 +259,19 @@ export default function PayrunPage() {
                 </div>
               </div>
             </div>
-            <Table>
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <div className="inline-block min-w-full align-middle">
+                <div className="overflow-hidden">
+                  <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Pay Period</TableHead>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Employer Cost</TableHead>
-                  <TableHead>Basic Wage</TableHead>
-                  <TableHead>Gross Wage</TableHead>
-                  <TableHead>Net Wage</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="whitespace-nowrap">Pay Period</TableHead>
+                  <TableHead className="whitespace-nowrap">Employee</TableHead>
+                  <TableHead className="hidden md:table-cell whitespace-nowrap">Employer Cost</TableHead>
+                  <TableHead className="hidden lg:table-cell whitespace-nowrap">Basic Wage</TableHead>
+                  <TableHead className="whitespace-nowrap">Gross Wage</TableHead>
+                  <TableHead className="whitespace-nowrap">Net Wage</TableHead>
+                  <TableHead className="whitespace-nowrap">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -273,14 +283,15 @@ export default function PayrunPage() {
                       className="cursor-pointer hover:bg-gray-50"
                       onClick={() => router.push(`/payroll/payslips/${payslip.id}`)}
                     >
-                      <TableCell>
-                        [{getMonthName(selectedPayrun.month)} {selectedPayrun.year}]
+                      <TableCell className="whitespace-nowrap">
+                        <span className="hidden sm:inline">[{getMonthName(selectedPayrun.month)} {selectedPayrun.year}]</span>
+                        <span className="sm:hidden">{selectedPayrun.month}/{selectedPayrun.year}</span>
                       </TableCell>
-                      <TableCell>{payslip.employee_name || 'Employee'}</TableCell>
-                      <TableCell>{formatCurrency(employerCost)}</TableCell>
-                      <TableCell>{formatCurrency(payslip.basic_salary || 0)}</TableCell>
-                      <TableCell>{formatCurrency(payslip.gross_salary || 0)}</TableCell>
-                      <TableCell>{formatCurrency(payslip.net_salary || 0)}</TableCell>
+                      <TableCell className="whitespace-nowrap">{payslip.employee_name || 'Employee'}</TableCell>
+                      <TableCell className="hidden md:table-cell whitespace-nowrap">{formatCurrency(employerCost)}</TableCell>
+                      <TableCell className="hidden lg:table-cell whitespace-nowrap">{formatCurrency(payslip.basic_salary || 0)}</TableCell>
+                      <TableCell className="whitespace-nowrap">{formatCurrency(payslip.gross_salary || 0)}</TableCell>
+                      <TableCell className="whitespace-nowrap">{formatCurrency(payslip.net_salary || 0)}</TableCell>
                       <TableCell>
                         {payslip.status === 'done' ? (
                           <Badge className="bg-green-100 text-green-800">
@@ -302,7 +313,10 @@ export default function PayrunPage() {
                   </TableRow>
                 )}
               </TableBody>
-            </Table>
+                  </Table>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
